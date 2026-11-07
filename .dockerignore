@@ -1,0 +1,16 @@
+.git
+.gitignore
+.vscode
+.idea
+
+.env
+.env.*
+
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+deploy
+scripts
+**/*_test.go
+*.md

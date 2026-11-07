@@ -1,0 +1,91 @@
+name: kumparan
+
+# Host ports already taken on this VPS (docker ps): 3000 3001 5432 5433 5434 8080 8081.
+# This stack publishes exactly one port, 127.0.0.1:${APP_HOST_PORT} (8090 in
+# deploy/.env.production.example, and the same port in the nginx upstream), and keeps
+# Postgres off the host entirely: it is reachable only as db:5432 on the project
+# network. Project name "kumparan" prefixes containers, network and volume.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-build: &api-build
+  context: .
+  dockerfile: Dockerfile
+
+x-app-env: &app-env
+  SERVER_PORT: ":8080"
+  GIN_MODE: ${GIN_MODE:?GIN_MODE is required}
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_USER: ${DB_USER:?DB_USER is required}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+  DB_NAME: ${DB_NAME:?DB_NAME is required}
+  DB_SSLMODE: disable
+  DB_MAX_CONNS: ${DB_MAX_CONNS:?DB_MAX_CONNS is required}
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # -h 127.0.0.1 matters: during first start the image runs a temporary server that
+      # listens on the unix socket only, so a socket check would report "ready" too early.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    logging: *default-logging
+
+  migrate:
+    build: *api-build
+    image: kumparan-api:latest
+    entrypoint: ["./migrate"]
+    command: ["up"]
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    build: *api-build
+    image: kumparan-api:latest
+    restart: unless-stopped
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:?APP_HOST_PORT is required}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
+    logging: *default-logging
+
+volumes:
+  pgdata:
