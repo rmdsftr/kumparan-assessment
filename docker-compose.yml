@@ -1,15 +1,5 @@
 name: kumparan
 
-# Host ports already taken on this VPS (docker ps): 3000 3001 5432 5433 5434 8080 8081.
-# This stack publishes two ports, both loopback-only (127.0.0.1, never reachable from
-# the internet): ${APP_HOST_PORT} for the API (8090 in deploy/.env.production.example,
-# same port in the nginx upstream) and 5490 for Postgres, used only as the destination
-# of an SSH tunnel (e.g. pgAdmin's SSH Tunnel tab) for ad hoc inspection — not by the
-# app itself, which still talks to db:5432 over the project network. 5432 is already
-# taken on this host by an unrelated container (enviroo-db, bound to 0.0.0.0), which is
-# why Postgres here is republished on 5490, not 5432. Project name "kumparan" prefixes
-# containers, network and volume.
-
 x-logging: &default-logging
   driver: json-file
   options:
