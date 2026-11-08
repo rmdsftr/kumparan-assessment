@@ -535,8 +535,7 @@ psql -U postgres -d kumparan_bench -v reset=1 -v n=1000000 -f scripts/bench/seed
 psql -U postgres -d kumparan_bench -f scripts/bench/explain.sql | Out-File -Encoding utf8 scripts/bench/warmup.txt
 psql -U postgres -d kumparan_bench -f scripts/bench/explain.sql | Out-File -Encoding utf8 scripts/bench/results.txt
 ```
-(Run twice, keep the second — the first warms the cache. `warmup.txt` and `results.txt` in this
-repo agree to within measurement noise, confirming these numbers are stable, not a fluke.)
+(Run twice: the first run warms the cache, and the second records the benchmark results. The recorded timings represent a warm-cache run and may vary depending on hardware and cache conditions.)
 
 **Setup**: 1,000,000 articles, 20,001 authors. Heap 1.75 GB; indexes 56 + 166 + 115 + 342 MB;
 2.78 GB total. `shared_buffers` 160 MB, `work_mem` 4 MB, `random_page_cost` 4 — a modest
@@ -578,6 +577,8 @@ in real traffic, moving search for high-volume authors to a dedicated search eng
 Elasticsearch/Meilisearch, kept in sync via the same mechanism that would back `article_count`)
 is the longer-term answer; for occasional use, either fix above is a smaller change that stays
 inside Postgres.
+
+**Benchmark scope and limitations**: The benchmark was conducted using 1 million synthetic articles, rather than the full 50-million-article production volume specified in the assessment. The dataset preserves the relevant distribution characteristics, particularly author skew and keyword frequency, to evaluate query behavior under representative conditions. Therefore, the reported timings demonstrate observed performance at the tested scale and should not be interpreted as guaranteed performance at 50 million rows. Further benchmarking at production scale would be necessary to validate storage requirements, query planner behavior, and overall performance under the full dataset.
 
 ## Testing
 
@@ -646,7 +647,9 @@ of this project.)
 | Area | AI's role |
 |---|---|
 | Initial code | Claude Code generated the first version of the codebase. |
+| Refactoring | AI assisted with refactoring existing code to improve structure, readability, and maintainability. |
 | Tests and seeders | AI wrote the test code and the seed data scripts, to save time. |
+| Technical exploration | AI was used for brainstorming, exploring alternative approaches, and evaluating potential trade-offs before making technical decisions. |
 | Documentation | AI logged each design decision as the code changed, then condensed that log into this README. |
 | Decisions | Mine — the scope additions and column/type choices in [Beyond the spec](#beyond-the-spec), the schema and constraint design throughout, and every requirement interpretation in [Requirements → decisions](#requirements--decisions). |
 
